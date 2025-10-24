@@ -1,0 +1,10 @@
+-- Seed attractions
+insert into public.attractions (name, description, category, location, entry_fee_rwf, latitude, longitude, featured, images) values
+('Volcanoes National Park', 'Home to the endangered mountain gorillas, this park offers unforgettable gorilla trekking experiences in the Virunga Mountains.', 'wildlife', 'Musanze District', 150000, -1.4733, 29.5844, true, ARRAY['/placeholder.svg?height=400&width=600', '/placeholder.svg?height=400&width=600']),
+('Akagera National Park', 'Rwanda''s only savannah park featuring the Big Five: lions, elephants, buffalos, leopards, and rhinos.', 'wildlife', 'Eastern Province', 50000, -1.9000, 30.7500, true, ARRAY['/placeholder.svg?height=400&width=600', '/placeholder.svg?height=400&width=600']),
+('Nyungwe Forest National Park', 'Ancient rainforest with chimpanzee tracking, canopy walks, and over 300 bird species.', 'nature', 'Southern Province', 60000, -2.4833, 29.2000, true, ARRAY['/placeholder.svg?height=400&width=600', '/placeholder.svg?height=400&width=600']),
+('Lake Kivu', 'One of Africa''s Great Lakes, perfect for swimming, kayaking, and relaxing on beautiful beaches.', 'nature', 'Western Province', 5000, -2.0000, 29.2333, true, ARRAY['/placeholder.svg?height=400&width=600', '/placeholder.svg?height=400&width=600']),
+('Kigali Genocide Memorial', 'A powerful memorial and museum documenting the 1994 genocide against the Tutsi.', 'culture', 'Kigali City', 0, -1.9536, 30.0606, false, ARRAY['/placeholder.svg?height=400&width=600']),
+('King''s Palace Museum', 'Traditional royal residence showcasing Rwanda''s monarchy history and cultural heritage.', 'culture', 'Nyanza District', 10000, -2.3500, 29.7500, false, ARRAY['/placeholder.svg?height=400&width=600']),
+('Mount Bisoke Hike', 'Challenging volcano hike with stunning crater lake views at the summit.', 'adventure', 'Musanze District', 75000, -1.4667, 29.4833, false, ARRAY['/placeholder.svg?height=400&width=600']),
+('Congo Nile Trail', 'Scenic 227km trail along Lake Kivu, perfect for hiking and cycling adventures.', 'adventure', 'Western Province', 0, -2.1667, 29.2500, false, ARRAY['/placeholder.svg?height=400&width=600']);
