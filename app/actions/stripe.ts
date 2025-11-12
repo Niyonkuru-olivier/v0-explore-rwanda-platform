@@ -1,6 +1,6 @@
 "use server"
 
-import { stripe } from "@/lib/stripe"
+import { getStripe } from "@/lib/stripe"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 
@@ -87,6 +87,12 @@ export async function createCheckoutSession(
 
   if (bookingError) throw bookingError
 
+  // Get Stripe instance (lazy initialization)
+  const stripe = getStripe()
+  if (!stripe) {
+    throw new Error("Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.")
+  }
+
   // Create Stripe checkout session
   const session = await stripe.checkout.sessions.create({
     ui_mode: "embedded",
@@ -126,20 +132,23 @@ export async function getBookingStatus(bookingId: string) {
 
   // If we have a Stripe session, check its status
   if (booking.stripe_session_id) {
-    const session = await stripe.checkout.sessions.retrieve(booking.stripe_session_id)
+    const stripe = getStripe()
+    if (stripe) {
+      const session = await stripe.checkout.sessions.retrieve(booking.stripe_session_id)
 
-    if (session.payment_status === "paid" && booking.payment_status !== "completed") {
-      // Update booking status
-      await supabase
-        .from("bookings")
-        .update({
-          payment_status: "completed",
-          booking_status: "confirmed",
-          stripe_payment_intent_id: session.payment_intent as string,
-        })
-        .eq("id", bookingId)
+      if (session.payment_status === "paid" && booking.payment_status !== "completed") {
+        // Update booking status
+        await supabase
+          .from("bookings")
+          .update({
+            payment_status: "completed",
+            booking_status: "confirmed",
+            stripe_payment_intent_id: session.payment_intent as string,
+          })
+          .eq("id", bookingId)
 
-      return { ...booking, payment_status: "completed", booking_status: "confirmed" }
+        return { ...booking, payment_status: "completed", booking_status: "confirmed" }
+      }
     }
   }
 

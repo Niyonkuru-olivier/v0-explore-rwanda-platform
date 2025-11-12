@@ -6,12 +6,19 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email, full_name, role)
+  insert into public.profiles (id, email, full_name, role, provider_type, phone)
   values (
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data ->> 'full_name', ''),
-    coalesce(new.raw_user_meta_data ->> 'role', 'tourist')
+    coalesce(new.raw_user_meta_data ->> 'role', 'tourist'),
+    -- Only set provider_type if role is 'provider', otherwise NULL
+    case 
+      when coalesce(new.raw_user_meta_data ->> 'role', 'tourist') = 'provider' 
+      then new.raw_user_meta_data ->> 'provider_type'
+      else null
+    end,
+    new.raw_user_meta_data ->> 'phone'
   )
   on conflict (id) do nothing;
 

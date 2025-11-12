@@ -20,9 +20,10 @@ export function Navigation() {
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
   const router = useRouter()
-  const supabase = createClient()
 
   useEffect(() => {
+    const supabase = createClient()
+    
     const getUser = async () => {
       const {
         data: { user },
@@ -32,15 +33,63 @@ export function Navigation() {
       if (user) {
         const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single()
         setProfile(data)
+      } else {
+        // Clear profile if no user
+        setProfile(null)
       }
     }
+    
     getUser()
+
+    // Listen for auth state changes (sign in, sign out, etc.)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser(session.user)
+        // Fetch profile when user signs in
+        supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", session.user.id)
+          .single()
+          .then(({ data }) => setProfile(data))
+      } else {
+        // Clear user and profile on sign out
+        setUser(null)
+        setProfile(null)
+      }
+    })
+
+    // Cleanup subscription on unmount
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [])
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    router.push("/")
-    router.refresh()
+    try {
+      const supabase = createClient()
+      
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut()
+      
+      if (error) {
+        console.error("Sign out error:", error)
+      }
+      
+      // Clear local state immediately
+      setUser(null)
+      setProfile(null)
+      
+      // Use hard redirect to ensure complete logout and clear any cached data
+      // This ensures the user is completely logged out and can login/create account again
+      window.location.href = "/"
+    } catch (error) {
+      console.error("Error during sign out:", error)
+      // Even if there's an error, try to redirect
+      window.location.href = "/"
+    }
   }
 
   return (

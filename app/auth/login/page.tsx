@@ -25,41 +25,102 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      // Sign in the user
+      const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
-      if (error) throw error
+      
+      if (signInError) throw signInError
 
+      // Wait a moment for the session to be fully established
+      await new Promise((resolve) => setTimeout(resolve, 100))
+
+      // Get the user
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser()
 
-      if (user) {
-        const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+      if (userError) throw userError
 
-        if (profile) {
-          switch (profile.role) {
-            case "admin":
-              router.push("/dashboard/admin")
-              break
-            case "provider":
-              router.push("/dashboard/provider")
-              break
-            case "tourist":
-            default:
-              router.push("/dashboard/tourist")
-              break
-          }
-        } else {
-          router.push("/")
+      if (!user) {
+        throw new Error("Failed to get user information")
+      }
+
+      // Fetch profile with retry logic
+      let profile = null
+      let retries = 3
+      
+      while (retries > 0 && !profile) {
+        const { data, error: profileError } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single()
+
+        if (profileError && profileError.code !== "PGRST116") {
+          // PGRST116 is "not found" error, which we'll handle
+          console.error("Profile fetch error:", profileError)
+        }
+
+        if (data) {
+          profile = data
+          break
+        }
+
+        // If profile doesn't exist, wait a bit and retry (in case trigger is still processing)
+        if (retries > 1) {
+          await new Promise((resolve) => setTimeout(resolve, 500))
+        }
+        retries--
+      }
+
+      // If profile still doesn't exist, create it with default role
+      if (!profile) {
+        const userMetadata = user.user_metadata || {}
+        const { data: newProfile, error: createError } = await supabase
+          .from("profiles")
+          .insert({
+            id: user.id,
+            email: user.email || email,
+            full_name: userMetadata.full_name || "",
+            role: userMetadata.role || "tourist",
+            phone: userMetadata.phone || null,
+          })
+          .select("role")
+          .single()
+
+        if (createError) {
+          console.error("Failed to create profile:", createError)
+          // Even if profile creation fails, try to proceed with default role
+        } else if (newProfile) {
+          profile = newProfile
         }
       }
 
-      router.refresh()
+      // Determine redirect path based on role
+      let redirectPath = "/dashboard/tourist" // default
+
+      if (profile && profile.role) {
+        switch (profile.role) {
+          case "admin":
+            redirectPath = "/dashboard/admin"
+            break
+          case "provider":
+            redirectPath = "/dashboard/provider"
+            break
+          case "tourist":
+          default:
+            redirectPath = "/dashboard/tourist"
+            break
+        }
+      }
+
+      // Use window.location for a hard redirect to ensure proper navigation
+      window.location.href = redirectPath
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred")
-    } finally {
+      setError(error instanceof Error ? error.message : "An error occurred during login")
       setIsLoading(false)
     }
   }

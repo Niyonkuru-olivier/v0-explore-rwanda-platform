@@ -17,9 +17,37 @@ export default async function TouristDashboardPage() {
     redirect("/auth/login")
   }
 
-  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+  let { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
 
-  if (!profile || profile.role !== "tourist") {
+  // If profile doesn't exist, create one with default tourist role
+  if (!profile) {
+    const { data: newProfile } = await supabase
+      .from("profiles")
+      .insert({
+        id: user.id,
+        email: user.email || "",
+        full_name: user.user_metadata?.full_name || "",
+        role: user.user_metadata?.role || "tourist",
+        phone: user.user_metadata?.phone || null,
+      })
+      .select("*")
+      .single()
+    profile = newProfile
+  }
+
+  // Redirect based on role if not tourist
+  if (profile && profile.role !== "tourist") {
+    if (profile.role === "admin") {
+      redirect("/dashboard/admin")
+    } else if (profile.role === "provider") {
+      redirect("/dashboard/provider")
+    } else {
+      redirect("/")
+    }
+  }
+
+  // If still no profile, redirect to home
+  if (!profile) {
     redirect("/")
   }
 
