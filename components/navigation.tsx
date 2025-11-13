@@ -138,6 +138,9 @@ export function Navigation() {
                   <DropdownMenuItem asChild>
                     <Link href="/bookings">My Bookings</Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard/account">My Account</Link>
+                  </DropdownMenuItem>
                   {profile?.role === "provider" && (
                     <DropdownMenuItem asChild>
                       <Link href="/provider">Provider Dashboard</Link>
@@ -219,6 +222,13 @@ export function Navigation() {
                   onClick={() => setIsOpen(false)}
                 >
                   My Bookings
+                </Link>
+                <Link
+                  href="/dashboard/account"
+                  className="block text-sm font-medium text-gray-700 hover:text-emerald-600"
+                  onClick={() => setIsOpen(false)}
+                >
+                  My Account
                 </Link>
                 {profile?.role === "provider" && (
                   <Link

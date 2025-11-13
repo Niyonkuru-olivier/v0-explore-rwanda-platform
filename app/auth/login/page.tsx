@@ -8,8 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useState, useMemo } from "react"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -17,6 +17,17 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  const successMessage = useMemo(() => {
+    if (searchParams.get("verified") === "1") {
+      return "Your email has been verified. You can now log in."
+    }
+    if (searchParams.get("reset") === "success") {
+      return "Password updated successfully. Please sign in with your new password."
+    }
+    return null
+  }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,12 +37,14 @@ export default function LoginPage() {
 
     try {
       // Sign in the user
-      const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
-      
-      if (signInError) throw signInError
+
+      if (signInError) {
+        throw new Error("Invalid email or password.")
+      }
 
       // Wait a moment for the session to be fully established
       await new Promise((resolve) => setTimeout(resolve, 100))
@@ -46,6 +59,11 @@ export default function LoginPage() {
 
       if (!user) {
         throw new Error("Failed to get user information")
+      }
+
+      if (!user.email_confirmed_at) {
+        await supabase.auth.signOut()
+        throw new Error("Please verify your email address before logging in. Check your inbox for the confirmation link.")
       }
 
       // Fetch profile with retry logic
@@ -157,10 +175,16 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                   />
                 </div>
+                {successMessage && <p className="text-sm rounded-md bg-emerald-50 border border-emerald-200 px-3 py-2 text-emerald-700">{successMessage}</p>}
                 {error && <p className="text-sm text-red-500">{error}</p>}
                 <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={isLoading}>
                   {isLoading ? "Logging in..." : "Login"}
                 </Button>
+              </div>
+              <div className="mt-3 text-right text-sm">
+                <Link href="/auth/forgot-password" className="text-emerald-600 hover:text-emerald-700 underline underline-offset-4">
+                  Forgot password?
+                </Link>
               </div>
               <div className="mt-4 text-center text-sm">
                 Don&apos;t have an account?{" "}

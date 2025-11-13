@@ -58,6 +58,9 @@ export default async function AdminDashboardPage() {
               <p className="text-gray-600">Manage the entire Explore Rwanda platform</p>
             </div>
           </div>
+          <p className="text-sm text-gray-500">
+            Signed in as <span className="font-medium text-gray-900">{profile?.full_name || user.email}</span>
+          </p>
         </div>
 
         {/* Statistics Grid */}
