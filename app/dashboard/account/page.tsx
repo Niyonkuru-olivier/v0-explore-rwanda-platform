@@ -15,7 +15,7 @@ export default async function AccountSettingsPage() {
 
   const { data: profileData } = await supabase
     .from("profiles")
-    .select("id, full_name, email, phone, role")
+    .select("id, full_name, email, phone, role, provider_type")
     .eq("id", user.id)
     .single()
 
@@ -56,6 +56,7 @@ export default async function AccountSettingsPage() {
             email: profile?.email ?? user.email ?? "",
             phone: profile?.phone ?? "",
             role: profile?.role ?? "tourist",
+            providerType: profile?.provider_type ?? null,
           }}
         />
       </div>

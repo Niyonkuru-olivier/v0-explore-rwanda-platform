@@ -9,12 +9,89 @@ import { Star } from "lucide-react"
 export default async function HotelsPage() {
   const supabase = await createClient()
 
-  const { data: hotels } = await supabase
-    .from("hotels")
-    .select("*")
-    .eq("status", "approved")
-    .order("featured", { ascending: false })
-    .order("name")
+  // Fetch approved hotels
+  let hotels: any[] | null = null
+  let hotelsError: any = null
+
+  try {
+    // First, try a simple query without multiple order clauses
+    const result = await supabase
+      .from("hotels")
+      .select("*")
+      .eq("status", "approved")
+
+    hotels = result.data
+    hotelsError = result.error
+
+    // Enhanced error logging
+    if (hotelsError) {
+      console.error("Error fetching hotels:", {
+        message: hotelsError.message,
+        details: hotelsError.details,
+        hint: hotelsError.hint,
+        code: hotelsError.code,
+        fullError: JSON.stringify(hotelsError, Object.getOwnPropertyNames(hotelsError)),
+      })
+    }
+  } catch (err) {
+    console.error("Exception fetching hotels:", err)
+    hotelsError = err
+  }
+
+  // Sort hotels: featured first, then by name
+  if (hotels && !hotelsError) {
+    hotels = hotels.sort((a, b) => {
+      // Featured hotels first
+      if (a.featured && !b.featured) return -1
+      if (!a.featured && b.featured) return 1
+      // Then alphabetically by name
+      return a.name.localeCompare(b.name)
+    })
+  }
+
+  const WEATHER_API_KEY = process.env.NEXT_PUBLIC_WEATHER_API_KEY
+
+  const rwCoords: Record<string, { lat: number; lon: number }> = {
+    kigali: { lat: -1.95, lon: 30.06 },
+    musanze: { lat: -1.5, lon: 29.63 },
+    rubavu: { lat: -1.706, lon: 29.256 },
+    gisenyi: { lat: -1.706, lon: 29.256 },
+    nyagatare: { lat: -1.315, lon: 30.32 },
+    nyabihu: { lat: -1.67, lon: 29.53 },
+    karongi: { lat: -2.06, lon: 29.35 },
+    rusizi: { lat: -2.51, lon: 28.9 },
+    huye: { lat: -2.61, lon: 29.74 },
+    muhanga: { lat: -2.076, lon: 29.756 },
+  }
+
+  function normalizePlace(input?: string | null): string | null {
+    if (!input) return null
+    const base = String(input).split(",")[0].trim().toLowerCase()
+    return base || null
+  }
+
+  const places = Array.from(
+    new Set((hotels || []).map((h: any) => normalizePlace(h.location)).filter(Boolean) as string[])
+  )
+
+  const weatherMap = new Map<string, any>()
+  try {
+    if (WEATHER_API_KEY) {
+      await Promise.all(
+        places.map(async (p) => {
+          const c = rwCoords[p]
+          if (!c) return
+          const res = await fetch(
+            `https://api.openweathermap.org/data/2.5/weather?lat=${c.lat}&lon=${c.lon}&units=metric&appid=${WEATHER_API_KEY}`,
+            { next: { revalidate: 600 } }
+          )
+          if (res.ok) {
+            weatherMap.set(p, await res.json())
+          }
+        })
+      )
+    }
+  } catch {}
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -46,6 +123,18 @@ export default async function HotelsPage() {
                   ))}
                 </div>
                 <h3 className="text-xl font-bold mb-2 text-blue-900">{hotel.name}</h3>
+                {(() => {
+                  const loc = normalizePlace(hotel.location)
+                  const w = loc ? weatherMap.get(loc) : null
+                  return (
+                    <div className="text-sm mb-2">
+                      <span className="text-gray-700">{hotel.location || "Rwanda"}</span>
+                      {w ? (
+                        <span className="ml-2 text-blue-700 font-semibold">{Math.round(w.main?.temp)}°C</span>
+                      ) : null}
+                    </div>
+                  )
+                })()}
                 <p className="text-gray-600 text-sm mb-4 line-clamp-3">{hotel.description}</p>
 
                 <div className="flex flex-wrap gap-2 mb-4">
@@ -79,7 +168,13 @@ export default async function HotelsPage() {
 
         {(!hotels || hotels.length === 0) && (
           <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">No hotels available at the moment.</p>
+            <p className="text-gray-500 text-lg mb-4">No approved hotels available at the moment.</p>
+            {hotelsError && (
+              <p className="text-sm text-red-500">Error loading hotels. Please try again later.</p>
+            )}
+            <p className="text-sm text-gray-400 mt-2">
+              Hotels need to be approved by an administrator before they appear here.
+            </p>
           </div>
         )}
       </div>

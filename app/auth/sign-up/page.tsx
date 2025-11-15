@@ -57,7 +57,7 @@ export default function SignUpPage() {
         throw new Error(payload?.error ?? "We couldn't create your account. Please try again.")
       }
 
-      router.push("/auth/sign-up-success")
+      router.push("/auth/login")
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred")
     } finally {

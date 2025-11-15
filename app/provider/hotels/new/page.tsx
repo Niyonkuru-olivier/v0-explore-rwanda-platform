@@ -71,7 +71,7 @@ export default function NewHotelPage() {
 
       if (insertError) throw insertError
 
-      router.push("/provider")
+      router.push("/dashboard/provider")
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -131,8 +131,11 @@ export default function NewHotelPage() {
                     min="1"
                     max="5"
                     required
-                    value={formData.star_rating}
-                    onChange={(e) => setFormData({ ...formData, star_rating: Number.parseInt(e.target.value) })}
+                    value={formData.star_rating || ""}
+                    onChange={(e) => {
+                      const value = e.target.value === "" ? 0 : Number.parseInt(e.target.value) || 0
+                      setFormData({ ...formData, star_rating: value })
+                    }}
                   />
                 </div>
               </div>
@@ -145,8 +148,11 @@ export default function NewHotelPage() {
                     type="number"
                     min="0"
                     required
-                    value={formData.price_per_night_rwf}
-                    onChange={(e) => setFormData({ ...formData, price_per_night_rwf: Number.parseInt(e.target.value) })}
+                    value={formData.price_per_night_rwf || ""}
+                    onChange={(e) => {
+                      const value = e.target.value === "" ? 0 : Number.parseInt(e.target.value) || 0
+                      setFormData({ ...formData, price_per_night_rwf: value })
+                    }}
                     placeholder="50000"
                   />
                 </div>
@@ -158,8 +164,11 @@ export default function NewHotelPage() {
                     type="number"
                     min="0"
                     required
-                    value={formData.available_rooms}
-                    onChange={(e) => setFormData({ ...formData, available_rooms: Number.parseInt(e.target.value) })}
+                    value={formData.available_rooms || ""}
+                    onChange={(e) => {
+                      const value = e.target.value === "" ? 0 : Number.parseInt(e.target.value) || 0
+                      setFormData({ ...formData, available_rooms: value })
+                    }}
                     placeholder="20"
                   />
                 </div>

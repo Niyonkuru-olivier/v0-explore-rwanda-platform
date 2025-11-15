@@ -69,7 +69,7 @@ export default function NewTourPage() {
 
       if (insertError) throw insertError
 
-      router.push("/provider")
+      router.push("/dashboard/provider")
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -117,8 +117,11 @@ export default function NewTourPage() {
                     type="number"
                     min="1"
                     required
-                    value={formData.duration_days}
-                    onChange={(e) => setFormData({ ...formData, duration_days: Number.parseInt(e.target.value) })}
+                    value={formData.duration_days || ""}
+                    onChange={(e) => {
+                      const value = e.target.value === "" ? 0 : Number.parseInt(e.target.value) || 0
+                      setFormData({ ...formData, duration_days: value })
+                    }}
                   />
                 </div>
 
@@ -129,8 +132,11 @@ export default function NewTourPage() {
                     type="number"
                     min="1"
                     required
-                    value={formData.max_participants}
-                    onChange={(e) => setFormData({ ...formData, max_participants: Number.parseInt(e.target.value) })}
+                    value={formData.max_participants || ""}
+                    onChange={(e) => {
+                      const value = e.target.value === "" ? 0 : Number.parseInt(e.target.value) || 0
+                      setFormData({ ...formData, max_participants: value })
+                    }}
                   />
                 </div>
 
@@ -141,10 +147,11 @@ export default function NewTourPage() {
                     type="number"
                     min="0"
                     required
-                    value={formData.price_per_person_rwf}
-                    onChange={(e) =>
-                      setFormData({ ...formData, price_per_person_rwf: Number.parseInt(e.target.value) })
-                    }
+                    value={formData.price_per_person_rwf || ""}
+                    onChange={(e) => {
+                      const value = e.target.value === "" ? 0 : Number.parseInt(e.target.value) || 0
+                      setFormData({ ...formData, price_per_person_rwf: value })
+                    }}
                     placeholder="150000"
                   />
                 </div>

@@ -61,19 +61,14 @@ export default function LoginPage() {
         throw new Error("Failed to get user information")
       }
 
-      if (!user.email_confirmed_at) {
-        await supabase.auth.signOut()
-        throw new Error("Please verify your email address before logging in. Check your inbox for the confirmation link.")
-      }
-
-      // Fetch profile with retry logic
+      // Fetch profile with retry logic - fetch full profile to ensure we have all data
       let profile = null
       let retries = 3
       
       while (retries > 0 && !profile) {
         const { data, error: profileError } = await supabase
           .from("profiles")
-          .select("role")
+          .select("role, provider_type")
           .eq("id", user.id)
           .single()
 

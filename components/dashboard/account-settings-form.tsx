@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 
 interface AccountSettingsFormProps {
@@ -18,13 +19,23 @@ interface AccountSettingsFormProps {
     email: string
     phone: string | null
     role: string
+    providerType: string | null
   }
 }
+
+const VALID_PROVIDER_TYPES = [
+  { value: "hotel", label: "Hotel Owner" },
+  { value: "tour_guide", label: "Tour Guide" },
+  { value: "car_rental", label: "Car Rental Service" },
+  { value: "restaurant", label: "Restaurant Owner" },
+  { value: "transport", label: "Transport Service" },
+] as const
 
 export default function AccountSettingsForm({ initialData }: AccountSettingsFormProps) {
   const [fullName, setFullName] = useState(initialData.fullName)
   const [email, setEmail] = useState(initialData.email)
   const [phone, setPhone] = useState(initialData.phone ?? "")
+  const [providerType, setProviderType] = useState(initialData.providerType ?? "")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
@@ -52,13 +63,25 @@ export default function AccountSettingsForm({ initialData }: AccountSettingsForm
         throw updateUserError
       }
 
+      const updateData: {
+        full_name: string
+        email: string
+        phone: string | null
+        provider_type?: string | null
+      } = {
+        full_name: fullName,
+        email,
+        phone: phone || null,
+      }
+
+      // Only update provider_type if user is a provider
+      if (initialData.role === "provider") {
+        updateData.provider_type = providerType && providerType.trim() ? providerType.trim() : null
+      }
+
       const { error: profileError } = await supabase
         .from("profiles")
-        .update({
-          full_name: fullName,
-          email,
-          phone: phone || null,
-        })
+        .update(updateData)
         .eq("id", initialData.id)
 
       if (profileError) {
@@ -71,7 +94,13 @@ export default function AccountSettingsForm({ initialData }: AccountSettingsForm
           ? "Your details have been updated. Please check your inbox to confirm the email change."
           : "Your account details have been updated successfully.",
       })
-      router.refresh()
+      
+      // If provider_type was set and user is a provider, redirect to their dashboard
+      if (initialData.role === "provider" && providerType && !initialData.providerType) {
+        router.push("/dashboard/provider")
+      } else {
+        router.refresh()
+      }
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -129,6 +158,33 @@ export default function AccountSettingsForm({ initialData }: AccountSettingsForm
             <Badge className="w-fit bg-emerald-600 hover:bg-emerald-700">{initialData.role}</Badge>
             <p className="text-xs text-gray-500">Roles are managed by the Explore Rwanda team.</p>
           </div>
+          
+          {initialData.role === "provider" && (
+            <div className="grid gap-2">
+              <Label htmlFor="providerType">Provider Type *</Label>
+              <Select value={providerType} onValueChange={setProviderType} required>
+                <SelectTrigger id="providerType">
+                  <SelectValue placeholder="Select your provider type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {VALID_PROVIDER_TYPES.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!initialData.providerType && (
+                <p className="text-xs text-amber-600">
+                  ⚠️ Please select your provider type to access your dashboard.
+                </p>
+              )}
+              <p className="text-xs text-gray-500">
+                Select the type of service you provide. This determines which dashboard you&apos;ll see.
+              </p>
+            </div>
+          )}
+          
           {error && <p className="text-sm text-red-500">{error}</p>}
           <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700" disabled={isSubmitting}>
             {isSubmitting ? "Saving changes..." : "Save changes"}

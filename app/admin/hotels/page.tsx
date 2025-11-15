@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { Check, X, Eye } from "lucide-react"
+import { approveHotel, rejectHotel } from "./actions"
 
 export default async function AdminHotelsPage() {
   const supabase = await createClient()
@@ -27,18 +28,6 @@ export default async function AdminHotelsPage() {
     .from("hotels")
     .select("*, profiles(full_name)")
     .order("created_at", { ascending: false })
-
-  const approveHotel = async (hotelId: string) => {
-    "use server"
-    const supabase = await createClient()
-    await supabase.from("hotels").update({ status: "approved" }).eq("id", hotelId)
-  }
-
-  const rejectHotel = async (hotelId: string) => {
-    "use server"
-    const supabase = await createClient()
-    await supabase.from("hotels").update({ status: "rejected" }).eq("id", hotelId)
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12">
@@ -102,13 +91,13 @@ export default async function AdminHotelsPage() {
                       </Button>
                       {hotel.status === "pending" && (
                         <>
-                          <form action={approveHotel.bind(null, hotel.id)}>
+                          <form action={async () => await approveHotel(hotel.id)}>
                             <Button type="submit" size="sm" className="bg-emerald-600 hover:bg-emerald-700">
                               <Check className="mr-2 h-4 w-4" />
                               Approve
                             </Button>
                           </form>
-                          <form action={rejectHotel.bind(null, hotel.id)}>
+                          <form action={async () => await rejectHotel(hotel.id)}>
                             <Button type="submit" size="sm" variant="destructive">
                               <X className="mr-2 h-4 w-4" />
                               Reject

@@ -36,6 +36,11 @@ export async function createCheckoutSession(
     item = data
 
     if (!item) throw new Error("Hotel not found")
+    
+    // Ensure hotel is approved before allowing booking
+    if (item.status !== "approved") {
+      throw new Error("This hotel is not available for booking. Please contact support if you believe this is an error.")
+    }
 
     const nights =
       checkInDate && checkOutDate
@@ -51,6 +56,11 @@ export async function createCheckoutSession(
     item = data
 
     if (!item) throw new Error("Tour not found")
+    
+    // Ensure tour is approved before allowing booking
+    if (item.status !== "approved") {
+      throw new Error("This tour is not available for booking. Please contact support if you believe this is an error.")
+    }
 
     priceInCents = item.price_per_person_rwf * (numberOfGuests || 1)
     productName = item.name

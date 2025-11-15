@@ -16,6 +16,50 @@ export default async function ToursPage() {
     .order("featured", { ascending: false })
     .order("name")
 
+  const WEATHER_API_KEY = process.env.NEXT_PUBLIC_WEATHER_API_KEY
+
+  const rwCoords: Record<string, { lat: number; lon: number }> = {
+    kigali: { lat: -1.95, lon: 30.06 },
+    musanze: { lat: -1.5, lon: 29.63 },
+    rubavu: { lat: -1.706, lon: 29.256 },
+    gisenyi: { lat: -1.706, lon: 29.256 },
+    nyagatare: { lat: -1.315, lon: 30.32 },
+    nyabihu: { lat: -1.67, lon: 29.53 },
+    karongi: { lat: -2.06, lon: 29.35 },
+    rusizi: { lat: -2.51, lon: 28.9 },
+    huye: { lat: -2.61, lon: 29.74 },
+    muhanga: { lat: -2.076, lon: 29.756 },
+  }
+
+  function normalizePlace(input?: string | null): string | null {
+    if (!input) return null
+    const base = String(input).split(",")[0].trim().toLowerCase()
+    return base || null
+  }
+
+  const places = Array.from(
+    new Set((tours || []).map((t: any) => normalizePlace((t as any).location)).filter(Boolean) as string[])
+  )
+
+  const weatherMap = new Map<string, any>()
+  try {
+    if (WEATHER_API_KEY) {
+      await Promise.all(
+        places.map(async (p) => {
+          const c = rwCoords[p]
+          if (!c) return
+          const res = await fetch(
+            `https://api.openweathermap.org/data/2.5/weather?lat=${c.lat}&lon=${c.lon}&units=metric&appid=${WEATHER_API_KEY}`,
+            { next: { revalidate: 600 } }
+          )
+          if (res.ok) {
+            weatherMap.set(p, await res.json())
+          }
+        })
+      )
+    }
+  } catch {}
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-white">
       <div className="container mx-auto px-4 py-12">
@@ -41,6 +85,18 @@ export default async function ToursPage() {
               </div>
               <CardContent className="p-6">
                 <h3 className="text-xl font-bold mb-2 text-amber-900">{tour.name}</h3>
+                {(() => {
+                  const loc = normalizePlace((tour as any).location)
+                  const w = loc ? weatherMap.get(loc) : null
+                  return (
+                    <div className="text-sm mb-2">
+                      <span className="text-gray-700">{(tour as any).location || "Rwanda"}</span>
+                      {w ? (
+                        <span className="ml-2 text-amber-700 font-semibold">{Math.round(w.main?.temp)}°C</span>
+                      ) : null}
+                    </div>
+                  )
+                })()}
                 <p className="text-gray-600 text-sm mb-4 line-clamp-3">{tour.description}</p>
 
                 <div className="flex items-center gap-4 mb-4 text-sm text-gray-600">

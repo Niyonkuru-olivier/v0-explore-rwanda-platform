@@ -2,7 +2,8 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 
 import { supabaseAdminClient } from "@/lib/supabase/admin"
-import { sendVerificationEmail } from "@/lib/email/send"
+
+const VALID_PROVIDER_TYPES = ["hotel", "tour_guide", "car_rental", "restaurant", "transport"] as const
 
 const registerSchema = z.object({
   email: z.string().email("Please provide a valid email address"),
@@ -10,7 +11,17 @@ const registerSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters long"),
   phone: z.string().min(3).max(30).optional().or(z.literal("")),
   role: z.enum(["tourist", "provider"]),
-  providerType: z.string().max(60).optional().or(z.literal("")),
+  providerType: z
+    .union([
+      z.enum(VALID_PROVIDER_TYPES, {
+        errorMap: () => ({
+          message: `Provider type must be one of: ${VALID_PROVIDER_TYPES.join(", ")}`,
+        }),
+      }),
+      z.literal(""),
+      z.null(),
+    ])
+    .optional(),
 })
 
 export async function POST(request: Request) {
@@ -31,36 +42,41 @@ export async function POST(request: Request) {
 
   const { email, password, fullName, phone, role, providerType } = parsed.data
 
-  if (role === "provider" && !providerType) {
+  // Normalize providerType: convert empty string to null, ensure it's trimmed
+  const normalizedProviderType = providerType && providerType.trim() ? providerType.trim() : null
+
+  if (role === "provider" && !normalizedProviderType) {
     return NextResponse.json({ error: "Please select a provider type" }, { status: 400 })
   }
 
-  const siteUrlString =
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined)
-
-  if (!siteUrlString) {
-    return NextResponse.json(
-      { error: "Site URL is not configured. Set NEXT_PUBLIC_SITE_URL or NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL." },
-      { status: 500 },
-    )
+  // Additional validation: ensure providerType is valid if role is provider
+  if (role === "provider" && normalizedProviderType) {
+    // Type guard to check if normalizedProviderType is a valid provider type
+    const isValidProviderType = (type: string): type is typeof VALID_PROVIDER_TYPES[number] => {
+      return VALID_PROVIDER_TYPES.includes(type as typeof VALID_PROVIDER_TYPES[number])
+    }
+    
+    if (!isValidProviderType(normalizedProviderType)) {
+      return NextResponse.json(
+        { error: `Invalid provider type. Must be one of: ${VALID_PROVIDER_TYPES.join(", ")}` },
+        { status: 400 }
+      )
+    }
   }
-
-  const siteUrl = new URL(siteUrlString)
 
   let createdUserId: string | undefined
 
   try {
+    // Create user using admin API with custom metadata
     const { data: createUserData, error: createUserError } = await supabaseAdminClient.auth.admin.createUser({
       email,
       password,
-      email_confirm: false,
+      email_confirm: true,
       user_metadata: {
         full_name: fullName,
         phone: phone || null,
         role,
-        provider_type: role === "provider" ? providerType : null,
+        provider_type: role === "provider" ? normalizedProviderType : null,
       },
     })
 
@@ -73,23 +89,16 @@ export async function POST(request: Request) {
 
     createdUserId = createUserData.user?.id
 
-    const { data: linkData, error: linkError } = await supabaseAdminClient.auth.admin.generateLink({
-      type: "signup",
-      email,
-      options: {
-        redirectTo: new URL("/auth/login?verified=1", siteUrl).toString(),
-      },
-    })
-
-    if (linkError || !linkData?.action_link) {
-      throw linkError ?? new Error("Failed to generate verification link")
+    if (!createdUserId) {
+      throw new Error("User was created but user ID is missing")
     }
 
-    await sendVerificationEmail({
-      to: email,
-      fullName,
-      actionLink: linkData.action_link,
-    })
+    if (process.env.NODE_ENV === "development") {
+      console.log("User created successfully (no email verification):", {
+        userId: createdUserId,
+        email,
+      })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {
@@ -97,10 +106,41 @@ export async function POST(request: Request) {
       await supabaseAdminClient.auth.admin.deleteUser(createdUserId).catch(() => undefined)
     }
 
-    const message =
-      error instanceof Error ? error.message : "Unable to complete registration. Please try again later."
+    // Enhanced error logging for debugging
+    const errorMessage = error instanceof Error ? error.message : "Unknown error"
+    const errorStack = error instanceof Error ? error.stack : undefined
 
-    return NextResponse.json({ error: message }, { status: 500 })
+    // Log error details in development
+    if (process.env.NODE_ENV === "development") {
+      console.error("Registration error:", {
+        message: errorMessage,
+        stack: errorStack,
+        role,
+        providerType: normalizedProviderType || providerType,
+        email,
+        createdUserId,
+      })
+    }
+
+    // Return user-friendly error message
+    let userMessage = "Unable to complete registration. Please try again later."
+    
+    // Check for specific error types
+    if (errorMessage.includes("constraint") || errorMessage.includes("check constraint")) {
+      userMessage = "Invalid provider type selected. Please try again with a valid service type."
+    } else if (errorMessage.includes("already registered") || errorMessage.includes("already exists")) {
+      userMessage = "This email address is already registered."
+    } else if (errorMessage.includes("generateLink") || errorMessage.includes("verification link")) {
+      userMessage = "We created your account but couldn't send the verification email. Please contact support or try logging in."
+    } else if (errorMessage.includes("RESEND_API_KEY") || errorMessage.includes("verification email")) {
+      // Email sending failed but account was created - this is handled gracefully above
+      userMessage = "Account created successfully! Verification email couldn't be sent. Please check the console for the verification link or contact support."
+    } else if (errorMessage) {
+      // Use the error message if it's user-friendly, but sanitize technical details
+      userMessage = errorMessage.replace(/generateLink error:|with user ID error:/gi, "").trim()
+    }
+
+    return NextResponse.json({ error: userMessage }, { status: 500 })
   }
 }
 

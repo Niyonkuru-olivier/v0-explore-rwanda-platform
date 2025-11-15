@@ -143,7 +143,7 @@ export function Navigation() {
                   </DropdownMenuItem>
                   {profile?.role === "provider" && (
                     <DropdownMenuItem asChild>
-                      <Link href="/provider">Provider Dashboard</Link>
+                      <Link href="/dashboard/provider">Provider Dashboard</Link>
                     </DropdownMenuItem>
                   )}
                   {profile?.role === "admin" && (
@@ -232,7 +232,7 @@ export function Navigation() {
                 </Link>
                 {profile?.role === "provider" && (
                   <Link
-                    href="/provider"
+                    href="/dashboard/provider"
                     className="block text-sm font-medium text-gray-700 hover:text-emerald-600"
                     onClick={() => setIsOpen(false)}
                   >
