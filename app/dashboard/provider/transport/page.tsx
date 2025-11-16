@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Truck, Plus, Eye, Edit } from "lucide-react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
+import { TransportStats } from "@/components/dashboard/transport-stats"
 
 export default async function TransportDashboardPage() {
   const supabase = await createClient()
@@ -41,6 +42,17 @@ export default async function TransportDashboardPage() {
 
   const pendingRoutes = transportServices?.filter((t) => t.status === "pending").length || 0
 
+  // Fetch all hotels, tours, and bookings for statistics
+  const { data: hotels } = await supabase.from("hotels").select("id")
+  const { data: tours } = await supabase.from("tours").select("id")
+  const { data: bookings } = await supabase.from("bookings").select("total_amount_rwf, payment_status")
+
+  const totalHotels = hotels?.length || 0
+  const totalTours = tours?.length || 0
+  const totalBookings = bookings?.length || 0
+  const totalRevenue =
+    bookings?.filter((b) => b.payment_status === "completed").reduce((sum, b) => sum + b.total_amount_rwf, 0) || 0
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white py-12">
       <div className="container mx-auto px-4 max-w-7xl">
@@ -60,7 +72,7 @@ export default async function TransportDashboardPage() {
           </div>
         </div>
 
-        {/* Statistics */}
+        {/* Transport Service Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card>
             <CardContent className="p-6">
@@ -103,6 +115,14 @@ export default async function TransportDashboardPage() {
           </Card>
         </div>
 
+        {/* System-wide Statistics (Clickable) */}
+        <TransportStats
+          totalHotels={totalHotels}
+          totalTours={totalTours}
+          totalBookings={totalBookings}
+          totalRevenue={totalRevenue}
+        />
+
         {/* Transport Services List */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
@@ -113,68 +133,86 @@ export default async function TransportDashboardPage() {
             <Button asChild className="bg-emerald-600 hover:bg-emerald-700">
               <Link href="/provider/transport-services/new">
                 <Plus className="mr-2 h-4 w-4" />
-                Add Route
+                Add New Company/Service
               </Link>
             </Button>
           </CardHeader>
           <CardContent>
             {transportServices && transportServices.length > 0 ? (
               <div className="space-y-4">
-                {transportServices.map((service: any) => (
-                  <div
-                    key={service.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg">{service.name}</h3>
-                      <p className="text-sm text-gray-600">
-                        {service.origin} → {service.destination}
-                      </p>
-                      <div className="flex gap-2 mt-2">
-                        <Badge
-                          variant={
-                            service.status === "approved"
-                              ? "default"
-                              : service.status === "pending"
-                                ? "secondary"
-                                : "destructive"
-                          }
-                          className={
-                            service.status === "approved"
-                              ? "bg-emerald-600"
-                              : service.status === "pending"
-                                ? "bg-amber-500"
-                                : "bg-red-500"
-                          }
-                        >
-                          {service.status}
-                        </Badge>
-                        <Badge variant="outline">
-                          {new Intl.NumberFormat("en-RW", {
-                            style: "currency",
-                            currency: "RWF",
-                            minimumFractionDigits: 0,
-                          }).format(service.price_per_trip_rwf)}
-                          /trip
-                        </Badge>
+                {transportServices
+                  .sort((a: any, b: any) => a.name.localeCompare(b.name))
+                  .map((service: any) => (
+                    <div
+                      key={service.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                    >
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg">{service.name || "Unnamed Service"}</h3>
+                        <p className="text-sm text-gray-600">
+                          {service.origin || "Origin"} → {service.destination || "Destination"}
+                        </p>
+                        {service.location && (
+                          <p className="text-sm text-gray-500 mt-1">
+                            Location: {service.location}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <Badge
+                            variant={
+                              service.status === "approved"
+                                ? "default"
+                                : service.status === "pending"
+                                  ? "secondary"
+                                  : "destructive"
+                            }
+                            className={
+                              service.status === "approved"
+                                ? "bg-emerald-600"
+                                : service.status === "pending"
+                                  ? "bg-amber-500"
+                                  : "bg-red-500"
+                            }
+                          >
+                            {service.status || "pending"}
+                          </Badge>
+                          {service.price_per_trip_rwf && (
+                            <Badge variant="outline">
+                              {new Intl.NumberFormat("en-RW", {
+                                style: "currency",
+                                currency: "RWF",
+                                minimumFractionDigits: 0,
+                              }).format(service.price_per_trip_rwf)}
+                              /trip
+                            </Badge>
+                          )}
+                          {service.service_type && (
+                            <Badge variant="outline">Type: {service.service_type}</Badge>
+                          )}
+                          {service.number_of_vehicles && (
+                            <Badge variant="outline">Vehicles: {service.number_of_vehicles}</Badge>
+                          )}
+                          {service.vehicle_capacity && (
+                            <Badge variant="outline">Capacity: {service.vehicle_capacity}</Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/transport-services/${service.id}`}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            View
+                          </Link>
+                        </Button>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/provider/transport-services/${service.id}/edit`}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </Link>
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/transport-services/${service.id}`}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          View
-                        </Link>
-                      </Button>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/provider/transport-services/${service.id}/edit`}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">

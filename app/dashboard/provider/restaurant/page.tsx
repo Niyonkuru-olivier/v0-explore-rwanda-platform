@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Utensils, Plus, Eye, Edit } from "lucide-react"
+import { Utensils, Plus, Eye, Edit, TrendingUp } from "lucide-react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 
@@ -39,7 +39,13 @@ export default async function RestaurantDashboardPage() {
     .eq("provider_id", user.id)
     .order("created_at", { ascending: false })
 
+  // Get booking statistics (assuming restaurants can have bookings/reservations)
+  const restaurantIds = restaurants?.map((r) => r.id) || []
+
+  // Note: If restaurants use a different booking system, adjust this query
+  // For now, we'll calculate based on restaurant data
   const pendingRestaurants = restaurants?.filter((r) => r.status === "pending").length || 0
+  const approvedRestaurants = restaurants?.filter((r) => r.status === "approved").length || 0
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-white py-12">
@@ -61,7 +67,7 @@ export default async function RestaurantDashboardPage() {
         </div>
 
         {/* Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -70,6 +76,18 @@ export default async function RestaurantDashboardPage() {
                   <p className="text-3xl font-bold text-amber-600">{restaurants?.length || 0}</p>
                 </div>
                 <Utensils className="h-10 w-10 text-amber-600 opacity-20" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Total Reservations</p>
+                  <p className="text-3xl font-bold text-emerald-600">0</p>
+                </div>
+                <TrendingUp className="h-10 w-10 text-emerald-600 opacity-20" />
               </div>
             </CardContent>
           </Card>
@@ -88,14 +106,15 @@ export default async function RestaurantDashboardPage() {
 
           <Card>
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Approved Restaurants</p>
-                  <p className="text-3xl font-bold text-emerald-600">
-                    {restaurants?.filter((r) => r.status === "approved").length || 0}
-                  </p>
-                </div>
-                <Utensils className="h-10 w-10 text-emerald-600 opacity-20" />
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Restaurant Revenue</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {new Intl.NumberFormat("en-RW", {
+                    style: "currency",
+                    currency: "RWF",
+                    minimumFractionDigits: 0,
+                  }).format(0)}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -124,11 +143,12 @@ export default async function RestaurantDashboardPage() {
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
                   >
                     <div className="flex-1">
-                      <h3 className="font-semibold text-lg">{restaurant.name}</h3>
+                      <h3 className="font-semibold text-lg">{restaurant.name || "Unnamed Restaurant"}</h3>
                       <p className="text-sm text-gray-600">
-                        {restaurant.location} • {restaurant.cuisine_type}
+                        {restaurant.location || "Location not specified"}
+                        {restaurant.cuisine_type && ` • ${restaurant.cuisine_type}`}
                       </p>
-                      <div className="flex gap-2 mt-2">
+                      <div className="flex flex-wrap gap-2 mt-2">
                         <Badge
                           variant={
                             restaurant.status === "approved"
@@ -145,7 +165,7 @@ export default async function RestaurantDashboardPage() {
                                 : "bg-red-500"
                           }
                         >
-                          {restaurant.status}
+                          {restaurant.status || "pending"}
                         </Badge>
                         {restaurant.average_price_rwf && (
                           <Badge variant="outline">
@@ -156,6 +176,9 @@ export default async function RestaurantDashboardPage() {
                             }).format(restaurant.average_price_rwf)}
                             /meal
                           </Badge>
+                        )}
+                        {restaurant.cuisine_type && (
+                          <Badge variant="outline">Cuisine: {restaurant.cuisine_type}</Badge>
                         )}
                       </div>
                     </div>

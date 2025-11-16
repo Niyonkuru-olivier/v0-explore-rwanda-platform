@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Car, Plus, Eye, Edit } from "lucide-react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
+import { CarRentalStats } from "@/components/dashboard/car-rental-stats"
 
 export default async function CarRentalDashboardPage() {
   const supabase = await createClient()
@@ -40,6 +41,7 @@ export default async function CarRentalDashboardPage() {
     .order("created_at", { ascending: false })
 
   const pendingVehicles = carRentals?.filter((car) => car.status === "pending").length || 0
+  const approvedVehicles = carRentals?.filter((car) => car.status === "approved").length || 0
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12">
@@ -60,46 +62,12 @@ export default async function CarRentalDashboardPage() {
           </div>
         </div>
 
-        {/* Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Vehicles</p>
-                  <p className="text-3xl font-bold text-blue-600">{carRentals?.length || 0}</p>
-                </div>
-                <Car className="h-10 w-10 text-blue-600 opacity-20" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Pending Vehicles</p>
-                  <p className="text-3xl font-bold text-amber-600">{pendingVehicles}</p>
-                </div>
-                <Car className="h-10 w-10 text-amber-600 opacity-20" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Approved Vehicles</p>
-                  <p className="text-3xl font-bold text-emerald-600">
-                    {carRentals?.filter((car) => car.status === "approved").length || 0}
-                  </p>
-                </div>
-                <Car className="h-10 w-10 text-emerald-600 opacity-20" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Statistics - Clickable Cards */}
+        <CarRentalStats
+          totalVehicles={carRentals?.length || 0}
+          pendingVehicles={pendingVehicles}
+          approvedVehicles={approvedVehicles}
+        />
 
         {/* Car Rentals List */}
         <Card>
@@ -111,24 +79,31 @@ export default async function CarRentalDashboardPage() {
             <Button asChild className="bg-blue-600 hover:bg-blue-700">
               <Link href="/provider/car-rentals/new">
                 <Plus className="mr-2 h-4 w-4" />
-                Add Vehicle
+                Add Vehicle/Company
               </Link>
             </Button>
           </CardHeader>
           <CardContent>
             {carRentals && carRentals.length > 0 ? (
               <div className="space-y-4">
-                {carRentals.map((car: any) => (
+                {carRentals
+                  .sort((a: any, b: any) => (a.name || "").localeCompare(b.name || ""))
+                  .map((car: any) => (
                   <div
                     key={car.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
                   >
                     <div className="flex-1">
-                      <h3 className="font-semibold text-lg">{car.name}</h3>
+                      <h3 className="font-semibold text-lg">{car.name || "Unnamed Vehicle"}</h3>
+                      {car.company_name && (
+                        <p className="text-sm font-medium text-blue-600 mb-1">{car.company_name}</p>
+                      )}
                       <p className="text-sm text-gray-600">
-                        {car.location} • {car.vehicle_type} • {car.seats} seats
+                        {car.location || "Location not specified"}
+                        {car.vehicle_type && ` • ${car.vehicle_type}`}
+                        {car.seats && ` • ${car.seats} seats`}
                       </p>
-                      <div className="flex gap-2 mt-2">
+                      <div className="flex flex-wrap gap-2 mt-2">
                         <Badge
                           variant={
                             car.status === "approved"
@@ -145,16 +120,24 @@ export default async function CarRentalDashboardPage() {
                                 : "bg-red-500"
                           }
                         >
-                          {car.status}
+                          {car.status || "pending"}
                         </Badge>
-                        <Badge variant="outline">
-                          {new Intl.NumberFormat("en-RW", {
-                            style: "currency",
-                            currency: "RWF",
-                            minimumFractionDigits: 0,
-                          }).format(car.price_per_day_rwf)}
-                          /day
-                        </Badge>
+                        {car.price_per_day_rwf && (
+                          <Badge variant="outline">
+                            {new Intl.NumberFormat("en-RW", {
+                              style: "currency",
+                              currency: "RWF",
+                              minimumFractionDigits: 0,
+                            }).format(car.price_per_day_rwf)}
+                            /day
+                          </Badge>
+                        )}
+                        {car.number_of_vehicles && (
+                          <Badge variant="outline">Vehicles: {car.number_of_vehicles}</Badge>
+                        )}
+                        {car.vehicle_capacity && (
+                          <Badge variant="outline">Capacity: {car.vehicle_capacity}</Badge>
+                        )}
                       </div>
                     </div>
                     <div className="flex gap-2">
